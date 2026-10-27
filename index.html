@@ -589,7 +589,9 @@ const VS=()=>S.vocab||(S.vocab={decks:["cump"],mode:"cards",dir:"pt",stats:{}});
 const wkey=w=>w.d+"|"+w.pt;
 const isNoun=w=>w.t&&w.t.startsWith("n-");
 const bare=pt=>pt.replace(/^\((a|o)\)\s*/,"").replace(/^(o|a|os|as)\s+/,"");
-const vAccept=w=>{const alts=w.pt.split(" / ");const out=[];alts.forEach(a=>{out.push(a,bare(a),a.replace(/^\((a|o)\)\s*/,"$1 "))});return [...new Set(out.map(norm))]};
+const vnorm=t=>norm(String(t).replace(/[…()]/g," ").replace(/\s*\/\s*/g," / "));
+const vAccept=w=>{const alts=w.pt.split(" / ");const out=[w.pt];alts.forEach(a=>{out.push(a,bare(a),a.replace(/^\((a|o)\)\s*/,"$1 "))});
+  if(alts.length>1)out.push(alts.map(bare).join(" / "),alts.slice().reverse().join(" / "));return [...new Set(out.map(vnorm))]};
 const tagLabel=t=>({"n-m":"noun · masculine","n-f":"noun · feminine","n-mp":"noun · masculine plural","n-fp":"noun · feminine plural","v-ar":"verb · -ar","v-er":"verb · -er","v-ir":"verb · -ir","v-irr":"verb · irregular",adj:"nationality / adjective",color:"colour",ph:"phrase",adv:"word",num:"number",day:"day of the week",country:"country",city:"city"}[t]||"");
 function pool(){const seen=new Set();return VOCAB.filter(w=>VS().decks.includes(w.d)&&!seen.has(w.pt)&&seen.add(w.pt))}
 function mark(w,ok){const st=VS().stats,k=wkey(w),s=st[k]||(st[k]={r:0,w:0,s:0});if(ok){s.r++;s.s++}else{s.w++;s.s=0}save()}
@@ -696,7 +698,7 @@ function gType(g,P){
   let q=P.slice(),ok=0,bad=0,streak=0;
   function draw(){
     if(!q.length){g.innerHTML=`<div class="gcard done"><h2>All done</h2><p>${ok} correct · ${bad} mistakes</p><button class="btn" id="re">Start again</button></div>`;$("#re").onclick=()=>gType(g,shuffle(pool()));refreshDecks();return}
-    const w=q[0],acc=vAccept(w);let hints=0,answered=false;
+    const w=q[0],acc=[...new Set(VOCAB.filter(x=>x.en===w.en).flatMap(vAccept))];let hints=0,answered=false;
     const target=w.pt.split(" / ")[0];
     g.innerHTML=`<div class="cardtop"><span class="hint"><b class="okc">${ok}</b> correct · <b class="badc">${bad}</b> mistakes · streak <b>${streak}</b> · ${q.length} left</span></div>
       <div class="gcard typec" id="tc"><span class="tl">${tagLabel(w.t)}${isNoun(w)?" · article optional":""}</span><span class="big en">${esc(w.en)}</span>
@@ -710,7 +712,7 @@ function gType(g,P){
     $("#hint").onclick=()=>{hints++;let n=0;$("#rv").textContent=[...target].map(c=>/[\s\-\/!?.…()]/.test(c)?c:(n++<hints?c:"_")).join("")};
     const check=()=>{
       if(answered){q.shift();draw();return}
-      const g2=norm(inp.value);if(!g2)return;answered=true;
+      const g2=vnorm(inp.value);if(!g2)return;answered=true;
       const good=acc.includes(g2),near=!good&&acc.map(strip).includes(strip(g2));
       const tc=$("#tc");tc.classList.remove("ok","no");void tc.offsetWidth;tc.classList.add(good?"ok":"no");
       if(good){ok++;streak++;mark(w,hints<2)}else{bad++;streak=0;mark(w,false);q.splice(Math.min(q.length,5),0,w)}
